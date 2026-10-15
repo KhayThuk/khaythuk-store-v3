@@ -20,9 +20,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, categoryName, duration, price, digitalData, expiresAt } = body;
 
-    // ค้นหาหรือสร้างหมวดหมู่ตามชื่อที่แอดมินพิมพ์ (เช่น Netflix, YouTube)
-    const catSlug = categoryName.toLowerCase().replace(/\s+/g, '-');
-    let cat = await prisma.category.findUnique({ where: { name: categoryName } });
+    let cat = await prisma.category.findFirst({ where: { name: categoryName } });
     
     if (!cat) {
       cat = await prisma.category.create({
@@ -43,6 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    console.error("Error creating product:", error);
+    return NextResponse.json({ error: 'Failed to create product', details: String(error) }, { status: 500 });
   }
 }
