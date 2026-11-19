@@ -74,3 +74,12 @@ button:disabled { opacity: .56; cursor: default; }
   .item-details { grid-column: 1 / -1; }
   .item-price { max-width: 8rem; }
 }
+
+.top-actions { display: flex; align-items: center; gap: .55rem; }
+.auth-shell { width: min(92%, 31rem); }
+.auth-panel { padding: clamp(1.15rem, 4vw, 2.15rem); }
+.auth-panel h1 { font-size: clamp(1.6rem, 6vw, 2rem); margin: 0 0 .4rem; line-height: 1.4; }
+.auth-panel p { margin: .38rem 0 1rem; color: var(--muted); }
+.auth-panel p.error { color: #9b2547; }
+.auth-panel form { display: grid; gap: .9rem; }
+.auth-panel form + a { margin-top: 1rem; }

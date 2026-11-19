@@ -6,7 +6,9 @@
 
 ใช้ Node.js 22 ขึ้นไป จากโฟลเดอร์นี้รัน `npm ci` และ `npm run build` ไฟล์ Worker ที่สร้างอยู่ที่ `dist/server/index.js`
 
-เว็บไซต์ใช้งานบน ChatGPT Sites และรับตัวตนผ่านระบบลงชื่อเข้าใช้ของ Sites ตั้ง `SHOP_ADMIN_EMAIL` เป็นค่าลับของโปรเจกต์ โดยใช้บัญชี ChatGPT ของเจ้าของร้าน ประกาศ D1 binding ชื่อ `DB` ใน `.openai/hosting.json` ของโปรเจกต์ Sites และใช้ migration จาก `drizzle/` ตัวอย่างรูปแบบ manifest อยู่ใน `.openai/hosting.example.json`
+หน้าร้านเปิดให้เข้าชมได้จากลิงก์โดยไม่ต้องล็อกอิน หลังบ้านที่ `/admin` เข้าด้วยรหัสผ่านร้าน เจ้าของร้านใช้บัญชี ChatGPT เพื่อยืนยันและตั้งรหัสผ่านครั้งแรก
+
+ตั้ง `SHOP_ADMIN_EMAIL` เป็นอีเมลของบัญชี ChatGPT เจ้าของร้าน และสร้าง `SHOP_LOGIN_PEPPER` แบบสุ่มอย่างน้อย 32 ไบต์ ทั้งสองค่าเก็บเป็นค่าลับของโปรเจกต์ Sites รหัสผ่านและเซสชันที่แฮชแล้วเก็บใน D1 ตั้ง D1 binding ชื่อ `DB` และใช้ migration ใน `drizzle/` ตัวอย่าง manifest อยู่ที่ `.openai/hosting.example.json`
 
 ไฟล์ `worker/catalog.seed.json` เป็นแคตตาล็อกเริ่มต้น เมื่อบันทึกจาก `/admin` ครั้งแรก รายการจะจัดเก็บใน D1 การกดบันทึกครั้งถัดไปจะแสดงผลบนหน้าร้านทันที
 

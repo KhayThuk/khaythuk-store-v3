@@ -1,28 +1,24 @@
 import { assets } from './assets.generated.js';
 import { CatalogError, getCatalog, renderStore, saveCatalog } from './catalog.js';
+import { adminRoute } from './admin-pages.js';
+import { activeSession, sameOrigin } from './admin-auth.js';
 
 const privateHeaders = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' };
 const htmlHeaders = { ...privateHeaders, 'Content-Type': 'text/html; charset=utf-8' };
 const methods = ['GET', 'POST', 'PATCH'];
 
-function isAdmin(request, env) {
-  const owner = env.SHOP_ADMIN_EMAIL?.trim().toLowerCase();
-  const email = request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase();
-  return Boolean(owner && email === owner && request.headers.get('oai-authenticated-user-id'));
-}
-
 function json(body, status = 200, headers = {}) {
   return Response.json(body, { status, headers: { ...privateHeaders, ...headers } });
 }
 
-async function adminApi(request, url, env, admin) {
-  if (!admin) return json({ error: 'กรุณาเข้าสู่ระบบด้วยบัญชีเจ้าของร้าน' }, 403);
+async function adminApi(request, url, env) {
+  if (!await activeSession(request, env.DB)) return json({ error: 'กรุณาเข้าสู่หลังบ้านด้วยรหัสผ่านร้าน' }, 403);
   if (!methods.includes(request.method)) {
     return json({ error: 'วิธีเรียกใช้งานไม่รองรับ' }, 405, { Allow: methods.join(', ') });
   }
   if (request.method === 'GET') return json(await getCatalog(env.DB));
 
-  if (request.headers.get('origin') !== url.origin || request.headers.get('x-shop-action') !== 'catalog') {
+  if (!sameOrigin(request, url) || request.headers.get('x-shop-action') !== 'catalog') {
     return json({ error: 'กรุณาบันทึกข้อมูลจากหน้าหลังบ้านของร้าน' }, 403);
   }
   if (!request.headers.get('content-type')?.startsWith('application/json')) {
@@ -86,26 +82,19 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const pathname = url.pathname;
-    const admin = isAdmin(request, env);
     try {
-      if (pathname === '/api/admin/catalog') return await adminApi(request, url, env, admin);
+      if (pathname === '/api/admin/catalog') return await adminApi(request, url, env);
+      if (pathname === '/admin' || pathname === '/admin.html' || pathname.startsWith('/admin/')) {
+        return await adminRoute(request, url, env);
+      }
+      if (pathname === '/admin-auth.html') return new Response('ไม่พบหน้านี้', { status: 404, headers: htmlHeaders });
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
       }
-      if (pathname === '/admin' || pathname === '/admin/' || pathname === '/admin.html') {
-        if (!admin) {
-          if (!request.headers.get('oai-authenticated-user-id')) {
-            return new Response(null, {
-              status: 302,
-              headers: { ...privateHeaders, Location: '/signin-with-chatgpt?return_to=%2Fadmin' },
-            });
-          }
-          return new Response('หน้านี้สำหรับเจ้าของร้าน', { status: 403, headers: htmlHeaders });
-        }
-        return new Response(request.method === 'HEAD' ? null : assets['/admin.html'].text, { headers: htmlHeaders });
-      }
       if (pathname === '/' || pathname === '/index.html') {
-        const page = request.method === 'HEAD' ? null : renderStore(assets['/index.html'].text, await getCatalog(env.DB), admin);
+        if (request.method === 'HEAD') return new Response(null, { headers: htmlHeaders });
+        const [catalog, admin] = await Promise.all([getCatalog(env.DB), activeSession(request, env.DB)]);
+        const page = renderStore(assets['/index.html'].text, catalog, admin);
         return new Response(page, { headers: htmlHeaders });
       }
       if (Object.hasOwn(assets, pathname)) return staticAsset(request, assets[pathname]);
