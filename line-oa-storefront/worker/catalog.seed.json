@@ -1,0 +1,360 @@
+[
+  {
+    "id": "netflix",
+    "name": "Netflix",
+    "color": "#9d1025",
+    "mark": "N",
+    "image": "assets/netflix.webp",
+    "note": "แพ็กเกจสำหรับมือถือ ทีวี และจอเสริมส่วนตัว",
+    "plans": [
+      {
+        "sku": "NF1",
+        "group": "มือถือ iPad คอม แอค5 จอพร้อมกัน4 จอ",
+        "label": "7 วัน",
+        "price": 4900
+      },
+      {
+        "sku": "NF2",
+        "group": "มือถือ iPad คอม แอค5 จอพร้อมกัน4 จอ",
+        "label": "30 วัน",
+        "price": 12900
+      },
+      {
+        "sku": "NF3",
+        "group": "ทีวีและอุปกรณ์ต่างๆ แอค5 จอพร้อมกัน4 จอ",
+        "label": "7 วัน",
+        "price": 6900
+      },
+      {
+        "sku": "NF4",
+        "group": "ทีวีและอุปกรณ์ต่างๆ แอค5 จอพร้อมกัน4 จอ",
+        "label": "30 วัน",
+        "price": 19900
+      },
+      {
+        "sku": "NF5",
+        "group": "จอเสริมส่วนตัวไม่ชนไม่หารกับใคร",
+        "label": "7 วัน",
+        "price": 9900
+      },
+      {
+        "sku": "NF6",
+        "group": "จอเสริมส่วนตัวไม่ชนไม่หารกับใคร",
+        "label": "30 วัน",
+        "price": 21000
+      }
+    ]
+  },
+  {
+    "id": "iqiyi",
+    "name": "iQIYI",
+    "color": "#196341",
+    "mark": "iQIYI",
+    "image": "assets/iqiyi.webp",
+    "note": "สำหรับอุปกรณ์ที่รองรับ งดใช้บนทีวี",
+    "plans": [
+      {
+        "sku": "IQ1",
+        "group": "แพ็กเกจ งดใช้บนทีวี",
+        "label": "30 วัน ชน",
+        "price": 4900
+      },
+      {
+        "sku": "IQ2",
+        "group": "แพ็กเกจ งดใช้บนทีวี",
+        "label": "30 วัน ไม่ชน",
+        "price": 7900
+      },
+      {
+        "sku": "IQ3",
+        "group": "แพ็กเกจ งดใช้บนทีวี",
+        "label": "30 วัน ยกแอค",
+        "price": 11000
+      }
+    ]
+  },
+  {
+    "id": "disney",
+    "name": "Disney+",
+    "color": "#203879",
+    "mark": "Disney+",
+    "image": "assets/disney.webp",
+    "note": "มีแพ็กเกจ 1, 7 และ 30 วัน",
+    "plans": [
+      {
+        "sku": "DS1",
+        "group": "ราคา Disney+ 1 วัน",
+        "label": "1 วัน ไม่ชน",
+        "price": 3900
+      },
+      {
+        "sku": "DS2",
+        "group": "ราคา Disney+ 7 วัน",
+        "label": "7 วัน จอชน",
+        "price": 6900
+      },
+      {
+        "sku": "DS3",
+        "group": "ราคา Disney+ 7 วัน",
+        "label": "7 วัน ไม่ชน",
+        "price": 7900
+      },
+      {
+        "sku": "DS4",
+        "group": "ราคา Disney+ 30 วัน",
+        "label": "30 วัน ไม่ชน",
+        "price": 14900
+      },
+      {
+        "sku": "DS5",
+        "group": "ราคา Disney+ 30 วัน",
+        "label": "30 วัน จอชน",
+        "price": 13900
+      }
+    ]
+  },
+  {
+    "id": "wetv",
+    "name": "WeTV",
+    "color": "#087183",
+    "mark": "WeTV",
+    "image": "assets/wetv.webp",
+    "note": "",
+    "plans": [
+      {
+        "sku": "WE1",
+        "group": "แพ็กเกจ",
+        "label": "30 วัน ชน",
+        "price": 4900
+      },
+      {
+        "sku": "WE2",
+        "group": "แพ็กเกจ",
+        "label": "30 วัน ไม่ชน",
+        "price": 7900
+      },
+      {
+        "sku": "WE3",
+        "group": "แพ็กเกจ",
+        "label": "30 วัน ยกแอค",
+        "price": 11000
+      },
+      {
+        "sku": "WE4",
+        "group": "แพ็กเกจ",
+        "label": "90 วัน หาร4 ชน",
+        "price": 9900
+      }
+    ]
+  },
+  {
+    "id": "hbomax",
+    "name": "HBO Max",
+    "color": "#50357e",
+    "mark": "HBO Max",
+    "image": "assets/hbomax.webp",
+    "note": "เลือกความละเอียด Full HD หรือ 4K",
+    "plans": [
+      {
+        "sku": "HB1",
+        "group": "FULL HD",
+        "label": "30 วัน จอชน",
+        "price": 9900
+      },
+      {
+        "sku": "HB2",
+        "group": "FULL HD",
+        "label": "30 วัน ไม่ชน",
+        "price": 13900
+      },
+      {
+        "sku": "HB3",
+        "group": "4K",
+        "label": "30 วัน จอชน",
+        "price": 13900
+      },
+      {
+        "sku": "HB4",
+        "group": "4K",
+        "label": "30 วัน ไม่ชน",
+        "price": 14900
+      }
+    ]
+  },
+  {
+    "id": "oned",
+    "name": "OneD",
+    "color": "#2d3447",
+    "mark": "oneD",
+    "image": "assets/oned.webp",
+    "note": "",
+    "plans": [
+      {
+        "sku": "OD1",
+        "group": "แพ็กเกจ OneD 30 วัน",
+        "label": "30 วัน หาร 4 ชน",
+        "price": 7900
+      },
+      {
+        "sku": "OD2",
+        "group": "แพ็กเกจ OneD 30 วัน",
+        "label": "30 วัน หาร 3 ชน",
+        "price": 9900
+      },
+      {
+        "sku": "OD3",
+        "group": "แพ็กเกจ OneD 30 วัน",
+        "label": "30 วัน หาร 2 ไม่ชน",
+        "price": 11900
+      },
+      {
+        "sku": "OD4",
+        "group": "แพ็กเกจ OneD 30 วัน",
+        "label": "30 วัน ยกแอคส่วนตัว ไม่หาร",
+        "price": 17900
+      }
+    ]
+  },
+  {
+    "id": "viu",
+    "name": "Viu",
+    "color": "#715600",
+    "mark": "viu",
+    "image": "assets/viu.webp",
+    "note": "",
+    "plans": [
+      {
+        "sku": "VI1",
+        "group": "หาร 4 มีชน",
+        "label": "30 วัน",
+        "price": 3900
+      },
+      {
+        "sku": "VI2",
+        "group": "หาร 4 มีชน",
+        "label": "60 วัน",
+        "price": 5900
+      },
+      {
+        "sku": "VI3",
+        "group": "หาร 4 มีชน",
+        "label": "90 วัน",
+        "price": 6900
+      },
+      {
+        "sku": "VI4",
+        "group": "แอคส่วนตัว",
+        "label": "30 วัน",
+        "price": 7900
+      }
+    ]
+  },
+  {
+    "id": "prime",
+    "name": "Prime Video",
+    "color": "#105b88",
+    "mark": "prime video",
+    "image": "assets/prime.webp",
+    "note": "",
+    "plans": [
+      {
+        "sku": "PR1",
+        "group": "7 วัน",
+        "label": "หาร 6",
+        "price": 2900
+      },
+      {
+        "sku": "PR2",
+        "group": "7 วัน",
+        "label": "หาร 4",
+        "price": 4900
+      },
+      {
+        "sku": "PR3",
+        "group": "30 วัน",
+        "label": "ชน",
+        "price": 7900
+      },
+      {
+        "sku": "PR4",
+        "group": "30 วัน",
+        "label": "ไม่ชน",
+        "price": 9900
+      }
+    ]
+  },
+  {
+    "id": "youku",
+    "name": "Youku",
+    "color": "#af315c",
+    "mark": "YOUKU",
+    "image": "assets/youku.webp",
+    "note": "",
+    "plans": [
+      {
+        "sku": "YK1",
+        "group": "30 วัน",
+        "label": "ชน",
+        "price": 4900
+      },
+      {
+        "sku": "YK2",
+        "group": "30 วัน",
+        "label": "ชนน้อย",
+        "price": 5900
+      },
+      {
+        "sku": "YK3",
+        "group": "30 วัน",
+        "label": "ไม่ชน",
+        "price": 6900
+      }
+    ]
+  },
+  {
+    "id": "youtube",
+    "name": "YouTube Premium",
+    "color": "#bd2832",
+    "mark": "YouTube",
+    "image": "assets/youtube.webp",
+    "note": "ใช้เมลลูกค้าตามเงื่อนไขของแต่ละแพ็กเกจ",
+    "plans": [
+      {
+        "sku": "YT1",
+        "group": "บุคคล ต้องใช้เมลใหม่",
+        "label": "1 เดือน",
+        "price": 13900
+      },
+      {
+        "sku": "YT2",
+        "group": "แฟมิลี่ ต่อเมลเดิมได้",
+        "label": "1 เดือน",
+        "price": 12900
+      },
+      {
+        "sku": "YT3",
+        "group": "แฟมิลี่ ต่อเมลเดิมได้",
+        "label": "2 เดือน",
+        "price": 21900
+      },
+      {
+        "sku": "YT4",
+        "group": "แฟมิลี่ ต่อเมลเดิมได้",
+        "label": "3 เดือน",
+        "price": 29900
+      },
+      {
+        "sku": "YT5",
+        "group": "แฟมิลี่ ต่อเมลเดิมได้",
+        "label": "รายปี",
+        "price": 139000
+      },
+      {
+        "sku": "YT6",
+        "group": "แฟมิลี่ ไม่ต่อเมล",
+        "label": "1 เดือน",
+        "price": 5900
+      }
+    ]
+  }
+]

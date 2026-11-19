@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>จัดการสินค้า | LINE OA SHOP</title>
+  <link rel="icon" href="/assets/flower.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="/admin.css">
+  <script src="/admin.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="shell top">
+      <a class="brand" href="/admin"><img src="/assets/flower.svg" width="27" height="27" alt=""> LINE OA SHOP</a>
+      <a class="secondary" href="/">ดูหน้าร้าน</a>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="intro">
+      <h1>จัดการสินค้า</h1>
+      <p>เพิ่มแพ็กเกจ แก้ราคา และกำหนดรายการที่แสดงบนหน้าร้าน</p>
+    </div>
+    <p class="notice" id="notice" role="status" aria-live="polite"></p>
+    <div class="layout">
+      <section class="panel add-panel" aria-labelledby="add-title">
+        <h2 id="add-title">เพิ่มแพ็กเกจ</h2>
+        <form id="add-form">
+          <label>บริการ
+            <select name="service" required disabled></select>
+          </label>
+          <label id="new-service" hidden>ชื่อบริการใหม่
+            <input name="newService" maxlength="70" placeholder="ชื่อบริการที่จะแสดงหน้าร้าน">
+          </label>
+          <div class="form-pair">
+            <label>รหัสแพ็กเกจ
+              <input name="sku" required minlength="2" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9\-]{1,23}" autocapitalize="characters" placeholder="เช่น NF7">
+            </label>
+            <label>ราคา (บาท)
+              <input name="price" inputmode="decimal" required pattern="[0-9]+([.][0-9]{1,2})?" maxlength="10" placeholder="เช่น 129">
+            </label>
+          </div>
+          <label>ชื่อแพ็กเกจ
+            <input name="label" required maxlength="120" placeholder="เช่น 30 วัน จอส่วนตัว">
+          </label>
+          <label>รายละเอียด <span>(ไม่บังคับ)</span>
+            <input name="group" maxlength="160" placeholder="เช่น รับชมบนมือถือและคอมพิวเตอร์">
+          </label>
+          <button class="primary" type="submit" disabled>เพิ่มลงหน้าร้าน</button>
+        </form>
+      </section>
+      <section class="panel catalog-panel" aria-labelledby="stock-title">
+        <div class="panel-head">
+          <div><h2 id="stock-title">รายการปัจจุบัน</h2><p id="counts">กำลังโหลดรายการ…</p></div>
+          <label class="sr-only" for="search">ค้นหาแพ็กเกจ</label>
+          <input id="search" type="search" placeholder="ค้นหาบริการหรือรหัส">
+        </div>
+        <div id="catalog"></div>
+      </section>
+    </div>
+  </main>
+  <template id="item-template">
+    <form class="item">
+      <div class="item-details">
+        <strong class="item-name"></strong>
+        <span class="item-label"></span>
+        <small class="item-group"></small>
+      </div>
+      <label class="item-price">บาท <input name="price" inputmode="decimal" required pattern="[0-9]+([.][0-9]{1,2})?" maxlength="10"></label>
+      <label class="item-visible"><input name="visible" type="checkbox"> แสดง</label>
+      <button class="secondary item-save" type="submit" disabled>บันทึก</button>
+    </form>
+  </template>
+</body>
+</html>

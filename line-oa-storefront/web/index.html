@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#326c9b">
+  <meta name="description" content="ดูราคาและรายละเอียดแพ็กเกจสตรีมมิง เลือกแพ็กเกจแล้วสั่งซื้อผ่าน LINE Official Account ของร้าน">
+  <title>LINE OA SHOP | แพ็กเกจสตรีมมิง</title>
+  <link rel="icon" href="assets/flower.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Noto+Sans+Thai:wght@300;400;500;600;700&amp;family=Noto+Serif+Thai:wght@400;500;600&amp;family=Playfair+Display:wght@400;500;600&amp;display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="assets/lucide.min.js" defer></script>
+  <script src="shop.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#catalog">ข้ามไปยังรายการแพ็กเกจ</a>
+  <section class="cover" id="home" aria-labelledby="hero-title">
+    <div class="cover-media" aria-hidden="true">
+      <video class="cover-video" autoplay loop muted playsinline preload="metadata" poster="assets/flowers-poster.webp">
+        <source src="assets/flowers-motion.webm" type="video/webm">
+        <source src="assets/flowers-motion.mp4" type="video/mp4">
+      </video>
+      <div class="overlay"></div>
+    </div>
+
+    <div class="content">
+      <header class="topbar">
+        <a class="wordmark" href="#home">
+          <img src="assets/flower.svg" alt="" width="28" height="28">
+          <span>LINE OA SHOP</span>
+        </a>
+        <nav class="main-nav" id="main-nav" aria-label="เมนูหลัก">
+          <a class="active" href="#home">หน้าแรก</a>
+          <a href="#catalog">แพ็กเกจ</a>
+          <a href="#how-to">วิธีสั่งซื้อ</a>
+          <a href="#contact">ติดต่อร้าน</a>
+          {{ADMIN_LINK}}
+        </nav>
+        <div class="header-actions">
+          <a class="icon-button header-search" id="search-link" href="#catalog" aria-label="ค้นหาแพ็กเกจ"><i data-lucide="search"></i></a>
+          <button class="icon-button bag-toggle" id="bag-toggle" type="button" aria-label="เปิดรายการที่เลือก" aria-haspopup="dialog">
+            <i data-lucide="shopping-bag"></i><span id="bag-count" hidden></span>
+          </button>
+          <a class="button button-outline header-line" href="https://lin.ee/YFaxXAX" target="_blank" rel="noopener">
+            <i data-lucide="message-circle"></i> ทัก LINE
+          </a>
+          <button class="icon-button menu-toggle" id="menu-toggle" type="button" aria-label="เปิดเมนู" aria-expanded="false" aria-controls="main-nav">
+            <i data-lucide="menu"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="hero">
+        <div class="hero-text">
+          <p class="hero-kicker"><span></span> STREAMING PACKAGES <span></span></p>
+          <h1 id="hero-title">เลือกแพ็กเกจ<br>ที่ใช่สำหรับคุณ</h1>
+          <p class="hero-description">รวมแพ็กเกจจาก {{BRANDS}} บริการ<br>ดูราคา เลือกแพ็กเกจ แล้วสั่งซื้อผ่าน LINE</p>
+          <a class="button button-pink" href="#catalog">ดูแพ็กเกจทั้งหมด <i data-lucide="arrow-right"></i></a>
+        </div>
+        <div class="hero-badge" aria-hidden="true">
+          <svg class="badge-letters" viewBox="0 0 128 128">
+            <defs>
+              <path id="badge-top" d="M14,64 a50,50 0 0 1 100,0"></path>
+              <path id="badge-bottom" d="M114,64 a50,50 0 0 1 -100,0"></path>
+            </defs>
+            <text><textPath href="#badge-top" startOffset="50%" text-anchor="middle">STREAMING</textPath></text>
+            <text><textPath href="#badge-bottom" startOffset="50%" text-anchor="middle">SHOP ON LINE</textPath></text>
+            <circle cx="14" cy="64" r="2.3"></circle>
+            <circle cx="114" cy="64" r="2.3"></circle>
+          </svg>
+          <img src="assets/flower.svg" loading="eager" alt="" width="37" height="37">
+        </div>
+        <a class="scroll-indicator" href="#catalog">
+          <span class="scroll-icon"><i data-lucide="arrow-down"></i></span>
+          <span>เลื่อนดูแพ็กเกจ</span>
+        </a>
+      </div>
+    </div>
+    <button class="icon-button motion-toggle" id="motion-toggle" type="button" hidden aria-label="หยุดวิดีโอพื้นหลัง">
+      <span class="motion-pause"><i data-lucide="pause"></i></span><span class="motion-play" hidden><i data-lucide="play"></i></span>
+    </button>
+  </section>
+
+  <main>
+    <section class="catalog section-width" id="catalog" aria-labelledby="catalog-title">
+      <div class="section-intro">
+        <div>
+          <p class="kicker">THE COLLECTION</p>
+          <h2 id="catalog-title">แพ็กเกจทั้งหมด</h2>
+          <p class="section-description">เปรียบเทียบระยะเวลา เงื่อนไข และราคาของแต่ละบริการ</p>
+        </div>
+        <label class="search-field" for="catalog-search">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <span class="sr-only">ค้นหาแพ็กเกจ</span>
+          <input id="catalog-search" type="search" placeholder="ค้นหาบริการหรือรหัสแพ็กเกจ">
+        </label>
+      </div>
+      <div class="filters" id="filters" role="group" aria-label="กรองตามบริการ" hidden>
+        <button class="filter-button" type="button" data-brand="all" aria-pressed="true">ทั้งหมด</button>
+        {{FILTERS}}
+      </div>
+      <div class="catalog-meta">
+        <p id="result-count" role="status">{{COUNTS}}</p>
+        <p>ราคาเป็นเงินบาท</p>
+      </div>
+      <div class="catalog-grid" id="catalog-grid">
+        {{CATALOG}}
+      </div>
+      <div class="empty-state" id="empty-state" hidden>
+        <i data-lucide="search-x" aria-hidden="true"></i>
+        <p>ไม่พบแพ็กเกจที่ตรงกับการค้นหา</p>
+        <button class="button button-subtle" id="reset-search" type="button">ดูแพ็กเกจทั้งหมด</button>
+      </div>
+      <p class="catalog-note"><i data-lucide="info" aria-hidden="true"></i> สอบถามราคาและสถานะสินค้าได้ทาง LINE ก่อนสั่งซื้อ</p>
+    </section>
+
+    <section class="how-to" id="how-to" aria-labelledby="how-title">
+      <div class="section-width">
+        <div class="section-intro">
+          <div>
+            <p class="kicker">ORDER ON LINE</p>
+            <h2 id="how-title">วิธีสั่งซื้อ</h2>
+          </div>
+          <a class="button button-green" href="https://lin.ee/YFaxXAX" target="_blank" rel="noopener">
+            <i data-lucide="message-circle"></i> เปิดแชต LINE
+          </a>
+        </div>
+        <ol class="steps">
+          <li><span class="step-icon"><i data-lucide="list-filter"></i></span><h3>เลือกแพ็กเกจ</h3><p>ดูราคาและเงื่อนไข แล้วจดหรือคัดลอกรหัสแพ็กเกจที่สนใจ</p></li>
+          <li><span class="step-icon"><i data-lucide="messages-square"></i></span><h3>ส่งรหัสใน LINE</h3><p>เปิดแชตร้านแล้วแจ้งชื่อบริการหรือส่งรหัสทีละรายการ</p></li>
+          <li><span class="step-icon"><i data-lucide="check-circle-2"></i></span><h3>ทำตามขั้นตอนในแชต</h3><p>ยืนยันรายการและยอดชำระกับร้านใน LINE</p></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer id="contact" class="footer">
+    <div class="section-width footer-inner">
+      <div>
+        <a class="wordmark" href="#home"><img src="assets/flower.svg" alt="" width="26" height="26"> LINE OA SHOP</a>
+        <p>ติดต่อร้านและสอบถามแพ็กเกจทาง LINE Official Account</p>
+      </div>
+      <a class="button footer-line" href="https://lin.ee/YFaxXAX" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> ทัก LINE Official Account</a>
+    </div>
+  </footer>
+
+  <dialog id="bag-dialog" class="bag-dialog" aria-labelledby="bag-title">
+    <div class="dialog-inner">
+      <div class="dialog-heading">
+        <h2 id="bag-title">แพ็กเกจที่เลือก</h2>
+        <form method="dialog">
+          <button class="icon-button close-dialog" type="submit" aria-label="ปิดรายการที่เลือก"><i data-lucide="x"></i></button>
+        </form>
+      </div>
+      <p id="bag-help">คัดลอกรหัสและส่งทีละรหัสในแชต LINE ของร้าน</p>
+      <ul id="bag-list" class="bag-list"></ul>
+      <p id="copy-status" class="copy-status" role="status"></p>
+      <a class="button button-green dialog-line" href="https://lin.ee/YFaxXAX" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> เปิดแชต LINE</a>
+    </div>
+  </dialog>
+
+  <button class="float-bag" id="float-bag" type="button" aria-haspopup="dialog" hidden>
+    <i data-lucide="shopping-bag"></i> รายการที่เลือก <span id="float-bag-count"></span>
+  </button>
+  <a class="float-line" id="float-line" href="https://lin.ee/YFaxXAX" target="_blank" rel="noopener" aria-label="เปิดแชต LINE Official Account" hidden>
+    <i data-lucide="message-circle"></i><span>ทัก LINE</span>
+  </a>
+</body>
+</html>
