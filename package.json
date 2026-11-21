@@ -1,0 +1,1 @@
+{"name":"mali-market","private":true,"type":"module","scripts":{"dev":"node scripts/local.mjs","build":"node scripts/build.mjs","test":"node --test scripts/store.test.mjs"},"engines":{"node":">=24"}}

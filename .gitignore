@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.dev.vars*
+.local/
+dist/
+node_modules/
+.sites-runtime/
+*.tar.gz
+*.zip
