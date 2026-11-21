@@ -49,11 +49,12 @@ test('registration, privileges, orders, stock, wallet, uploaded slips and duplic
   assert.equal((await call('admin/adjust',adjust,admin)).status,200);
   assert.equal((await call('admin/adjust',{...adjust,delta:-1000,key:'debit'},admin)).status,200);
   const image=(await (await call('admin/images',slip(1),admin)).json()).key;
-  const fields={name:'แพลนเนอร์',category:'เทมเพลต',description:'คำอธิบาย',stock:1,price:5900,active:true,delivery:'เฉพาะผู้ซื้อ',image_key:image};
+  const fields={name:'แพ็กเกจทดสอบ',category:'ทดสอบ',description:'คำอธิบาย',price:5900,active:true,image_key:image};
   const product=(await (await call('admin/products',fields,admin)).json()).id;
   assert.equal((await call('images/'+image)).status,200);
-  assert.equal((await (await call('store')).json()).products[0].delivery,undefined);
+  assert.equal((await (await call('store')).json()).products.find(p=>p.id===product).delivery,undefined);
   assert.equal((await call('admin/products',{...fields,id:product,revision:0,name:'แพลนเนอร์ใหม่'},admin)).status,200);
+  assert.equal((await call('admin/inventory',{product,codes:'00001-TEST'},admin)).status,201);
   const order={product,quantity:1,price:5900,key:'purchase'};
   const both=await Promise.all([call('orders',order,customer),call('orders',order,customer)]);
   assert.deepEqual(both.map(x=>x.status).sort(),[200,201]);
@@ -62,7 +63,7 @@ test('registration, privileges, orders, stock, wallet, uploaded slips and duplic
   let account=await (await call('account',undefined,customer)).json();
   assert.equal(account.user.balance,5100);
   assert.equal(account.orders.length,1);
-  assert.equal(account.orders[0].delivery,'เฉพาะผู้ซื้อ');
+  assert.deepEqual(JSON.parse(account.orders[0].codes),['00001-TEST']);
   assert.equal((await call('topups',slip(2),customer)).status,409);
   assert.equal((await call('admin/settings',{bank:'ทดสอบ',account:'000-0',holder:'ทดสอบ'},admin)).status,200);
   const receipt=await call('topups',slip(2),customer);
@@ -80,7 +81,7 @@ test('registration, privileges, orders, stock, wallet, uploaded slips and duplic
   account=await (await call('account',undefined,customer)).json();
   assert.equal(account.user.balance,8100);
   assert.equal(account.ledger.length,4);
-  assert.equal((await (await call('store')).json()).products[0].stock,0);
+  assert.equal((await (await call('store')).json()).products.find(p=>p.id===product).stock,0);
   assert.equal(env.sqlite.prepare('SELECT count(*) AS n FROM orders').get().n,1);
   assert.equal((await call('logout',{},customer)).status,200);
   assert.equal((await call('account',undefined,customer)).status,401);
@@ -104,4 +105,44 @@ test('automatic verifier credits a matching transaction once and queues receiver
   receiver='different-recipient';
   assert.equal((await (await call('topups',slip(9),customer)).json()).status,'pending');
   assert.equal((await (await call('account',undefined,customer)).json()).user.balance,9900);
+});
+
+test('reference catalog, ordered allocation, mixed duplicate batch rollback and buyer isolation', async () => {
+  const {call,auth}=fixture();
+  const seeded=await (await call('store')).json();
+  assert.equal(seeded.products.length,30);
+  assert.equal(new Set(seeded.products.map(p=>p.category)).size,12);
+  assert.ok(seeded.products.every(p=>p.stock===0));
+  assert.equal((await (await call('store')).json()).products.length,30);
+  const product=seeded.products.find(p=>p.category==='Netflix').id;
+  const price=seeded.products.find(p=>p.id===product).price;
+  const admin=auth(await call('setup',{}));
+  const customers=[];
+  for (const username of ['buyer-one','buyer-two','buyer-three']) {
+    const account=auth(await call('signup',{username,email:username+'@example.test',display_name:username,password:'test-long-password'}));
+    const {user}=await (await call('account',undefined,account)).json();
+    assert.equal((await call('admin/adjust',{user:user.id,delta:price*3,reason:'test',key:username},admin)).status,200);
+    customers.push(account);
+  }
+  assert.equal((await call('admin/inventory',{product,codes:'not allowed'},customers[0])).status,403);
+  assert.equal((await call('admin/inventory',{product,codes:'0001541\r\n\r\n0001542\n0001543'},admin)).status,201);
+  assert.equal((await call('admin/inventory',{product,codes:'unused-test\n0001542'},admin)).status,409);
+  const first={product,quantity:2,price,key:'first'};
+  assert.equal((await call('orders',first,customers[0])).status,201);
+  const purchase={product,quantity:1,price,key:'last'};
+  const results=await Promise.all(customers.slice(1).map(customer=>call('orders',purchase,customer)));
+  assert.deepEqual(results.map(x=>x.status).sort(),[201,409]);
+  const firstAccount=await (await call('account',undefined,customers[0])).json();
+  assert.deepEqual(JSON.parse(firstAccount.orders[0].codes),['0001541','0001542']);
+  assert.equal(firstAccount.user.balance,price);
+  const winner=customers[results.findIndex(x=>x.status===201)+1];
+  const loser=customers[results.findIndex(x=>x.status===409)+1];
+  assert.deepEqual(JSON.parse((await (await call('account',undefined,winner)).json()).orders[0].codes),['0001543']);
+  const losingAccount=await (await call('account',undefined,loser)).json();
+  assert.equal(losingAccount.orders.length,0);
+  assert.equal(losingAccount.user.balance,price*3);
+  const publicJson=await (await call('store')).text();
+  assert.ok(!publicJson.includes('000154'));
+  assert.equal(JSON.parse(publicJson).products.find(p=>p.id===product).stock,0);
+  assert.equal((await call('admin/inventory',{product,codes:'0001541'},admin)).status,409);
 });

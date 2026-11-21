@@ -20,11 +20,11 @@ const area = (label, name, value, max = 3000) => `<label>${label}<textarea name=
 const uploadInput = (label, required = false) => input(label, 'image', `type="file" accept="image/jpeg,image/png,image/webp" ${required ? 'required' : ''}`);
 const form = (action, content, label, attrs = '') => `<form data-action="${action}" class="fields" ${attrs}>${content}<p class="error" role="alert" hidden></p><div>${button(label)}</div></form>`;
 const table = (columns, rows, message = 'ยังไม่มีรายการ') => rows.length ? `<div class="table-wrap"><table><thead><tr>${columns.map(c=>`<th scope="col">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : empty(message);
-const demo = [
-  {name:'แพลนเนอร์รายสัปดาห์',category:'เทมเพลต',description:'วางแผนตารางสัปดาห์และเช็กรายการงานในหน้าเดียว',price:5900,stock:0},
-  {name:'ตารางบันทึกรายรับรายจ่าย',category:'ไฟล์ตาราง',description:'รวมรายรับ รายจ่าย และยอดคงเหลือรายเดือน',price:7900,stock:0},
-  {name:'ชุดวอลเปเปอร์มะลิ',category:'วอลเปเปอร์',description:'ชุดภาพพื้นหลังสำหรับมือถือและคอมพิวเตอร์',price:3900,stock:0},
-];
+const coverNames = {
+  Netflix:'netflix', iQIYI:'iqiyi', WeTV:'wetv', Viu:'viu', 'Prime Video':'prime-video',
+  Gmail:'gmail', Monomax:'monomax', 'Disney+':'disney', TrueID:'trueid', 'Ch3+':'ch3',
+  YouTube:'youtube', Bilibili:'bilibili',
+};
 let store = { products:[], user:null, ownerSetup:false };
 let pageSequence = 0;
 let alertTimer;
@@ -54,25 +54,25 @@ async function refresh() {
   ].join('') : (ownerSetup ? link('ตั้งค่าร้าน','/setup','small outline') : '') + link('เข้าสู่ระบบ','/login','small');
 }
 function cover(product) {
-  return product.image_key ? `<img class="cover" src="${img(product.image_key)}" alt="${escape(product.name)}">`
+  const file = Object.hasOwn(coverNames, product.category) ? coverNames[product.category] : null;
+  const url = product.image_key ? img(product.image_key) : file && '/covers/' + file + '.webp';
+  return url ? `<img class="cover" src="${url}" alt="${escape(product.category)}">`
     : `<div class="tile"><span>${escape(product.category)}</span></div>`;
 }
-function productCards(products, sample = false) {
+function productCards(products) {
   if (!products.length) return empty('ไม่มีสินค้าที่ตรงกับการค้นหา');
-  return products.map(p => {
-    const body = cover(p) + `<div class="card-body"><span class="muted meta">${escape(p.category)}</span><h3>${escape(p.name)}</h3>
-      <div class="row"><span class="price">${cash(p.price)}</span><span class="pill">${sample ? 'ตัวอย่าง' : p.stock ? 'คงเหลือ ' + p.stock : 'สินค้าหมด'}</span></div></div>`;
-    return sample ? `<article class="card">${body}</article>` : `<a class="card" href="#/product/${encodeURIComponent(p.id)}">${body}</a>`;
-  }).join('');
+  return products.map(p => `<a class="card" href="#/product/${encodeURIComponent(p.id)}">${cover(p)}
+    <div class="card-body"><span class="muted meta">${escape(p.category)}</span><h3>${escape(p.name)}</h3>
+    <div class="row"><span class="price">${cash(p.price)}</span><span class="pill">${p.stock ? 'คงเหลือ ' + p.stock : 'สินค้าหมด'}</span></div></div></a>`).join('');
 }
 function home() {
-  const products = store.products.length ? store.products.slice(0,6) : demo;
-  return `<section class="hero"><div class="hero-copy"><h1 class="hero-title">ร้านค้าดิจิทัล<br><span>มะลิมาร์เก็ต</span></h1><p>เลือกสินค้า เติมเงินเข้ากระเป๋า และเปิดดูคำสั่งซื้อของคุณได้ในที่เดียว</p>${link('เลือกดูสินค้า','/shop','light')}</div><div class="hero-image" role="img" aria-label="สมุดและกระเป๋าผ้าในโทนสีเขียว"></div></section>
-  <div class="quick"><a href="#/${store.user?'wallet':'signup'}"><span class="quick-icon" aria-hidden="true">✿</span><span><strong>${store.user?'กระเป๋าเงิน':'สมัครสมาชิก'}</strong><small>${store.user?'ดูยอดเงินและรายการล่าสุด':'สร้างบัญชีเพื่อเริ่มสั่งซื้อ'}</small></span></a>
+  const products = store.products.slice(0,6);
+  return `<section class="hero"><div class="hero-copy"><h1 class="hero-title">รหัสดิจิทัล<br><span>Khay Thuk</span></h1><p>เลือกแพ็กเกจ เติมเงิน และเปิดดูรหัสของคุณได้ทันทีหลังสั่งซื้อ</p>${link('เลือกดูสินค้า','/shop','light')}</div><div class="hero-image" role="img" aria-label="รีโมตและหูฟังกับจอทีวีสีน้ำเงิน"></div></section>
+  <div class="quick"><a href="#/${store.user?'wallet':'signup'}"><span class="quick-icon" aria-hidden="true">+</span><span><strong>${store.user?'กระเป๋าเงิน':'สมัครสมาชิก'}</strong><small>${store.user?'ดูยอดเงินและรายการล่าสุด':'สร้างบัญชีเพื่อเริ่มสั่งซื้อ'}</small></span></a>
   <a href="#/wallet"><span class="quick-icon" aria-hidden="true">฿</span><span><strong>เติมเงิน</strong><small>โอนเงินและส่งสลิป</small></span></a>
   <a href="#/orders"><span class="quick-icon" aria-hidden="true">✓</span><span><strong>คำสั่งซื้อ</strong><small>ดูสถานะและสินค้าที่ได้รับ</small></span></a></div>
-  <div class="section-head"><div><h2>${store.products.length?'สินค้าแนะนำ':'ตัวอย่างสินค้า'}</h2><p>${store.products.length?'เลือกดูสินค้าที่พร้อมสั่งซื้อ':'รายการจริงจะแสดงเมื่อร้านเพิ่มสินค้า'}</p></div>${link('สินค้าทั้งหมด','/shop','outline small')}</div>
-  <div class="grid">${productCards(products,!store.products.length)}</div>`;
+  <div class="section-head"><div><h2>สินค้าแนะนำ</h2><p>เลือกดูแพ็กเกจจากแอปที่คุณใช้</p></div>${link('สินค้าทั้งหมด','/shop','outline small')}</div>
+  <div class="grid">${productCards(products)}</div>`;
 }
 function shop() {
   const names = [...new Set(store.products.map(p => p.category))].sort((a,b)=>a.localeCompare(b,'th'));
@@ -118,26 +118,36 @@ function wallet(d) {
     <div class="stack"><section class="panel"><h2>รายการเติมเงิน</h2>${table(['วันที่','สถานะ','จำนวน','หมายเหตุ'],topups.map(t=>[date(t.created_at),badge(t.status),t.amount?cash(t.amount):'—',escape(t.note)]))}</section>
     <section class="panel"><h2>ประวัติยอดเงิน</h2>${table(['วันที่','รายการ','เปลี่ยนแปลง','คงเหลือ'],ledger.map(l=>[date(l.created_at),badge(l.kind)+' '+escape(l.reason),cash(l.delta),cash(l.balance_after)]))}</section></div>`;
 }
+function deliveredContent(order) {
+  const codes = JSON.parse(order.codes || '[]');
+  if (codes.length) return `<div class="notice"><strong>รหัสสินค้า</strong><ol class="order-codes">${codes.map(code =>
+    `<li><code class="mono">${escape(code)}</code></li>`).join('')}</ol></div>`;
+  return order.delivery ? `<div class="notice delivery">${escape(order.delivery)}</div>` : '';
+}
 function orders(d) {
   return title('คำสั่งซื้อ','แสดงรายการล่าสุดของบัญชีนี้') + `<div class="stack">${d.orders.length ? d.orders.map(o=>
     `<article class="panel"><div class="row"><h2>${escape(o.product_name)}</h2>${badge(o.status)}</div><p>${o.quantity} ชิ้น · ${cash(o.total)} · ${date(o.created_at)}</p>
-    <p class="muted mono">${escape(o.id)}</p>${o.delivery?`<div class="notice delivery">${escape(o.delivery)}</div>`:''}</article>`).join('') : empty('ยังไม่มีคำสั่งซื้อ')}</div>`;
+    <p class="muted mono">${escape(o.id)}</p>${deliveredContent(o)}</article>`).join('') : empty('ยังไม่มีคำสั่งซื้อ')}</div>`;
 }
 function adminPanel(section, data, target) {
   const tabs = [['products','สินค้า'],['users','สมาชิก'],['orders','คำสั่งซื้อ'],['topups','ตรวจสลิป'],['ledger','ประวัติยอดเงิน'],['settings','บัญชีรับเงิน']];
   let content;
   if (section==='products') {
     const p = data.products.find(x=>x.id===target);
-    content = `<div class="split"><section class="panel"><div class="row"><h2>รายการสินค้า</h2>${p?link('เพิ่มสินค้าใหม่','/admin/products','outline small'):''}</div>
+    const inventory = p ? `<section class="inventory"><div class="row"><h2>รหัสสินค้าหลังสั่งซื้อ</h2><span class="pill">คงเหลือ ${p.stock} ชิ้น</span></div>
+      <p class="muted">วางหนึ่งรหัสต่อหนึ่งบรรทัด ระบบจะส่งรหัสตามลำดับที่เพิ่มเข้า และนำรหัสที่ส่งแล้วออกจากสต็อก</p>
+      ${form('inventory', `<label>เพิ่มรหัสสินค้า<textarea name="codes" required maxlength="50099" spellcheck="false" autocomplete="off" rows="6"></textarea>
+      <small>เพิ่มได้สูงสุด 100 บรรทัดต่อครั้ง</small></label>`, 'เพิ่มรหัสเข้าสต็อก', `data-id="${escape(p.id)}"`)}</section>` : '';
+    content = `<div class="split admin-products"><section class="panel"><div class="row"><h2>รายการสินค้า</h2>${p?link('เพิ่มสินค้าใหม่','/admin/products','outline small'):''}</div>
       ${table(['สินค้า','ราคา','สต็อก','เผยแพร่',''],data.products.map(x=>[escape(x.name),cash(x.price),x.stock,x.active?'แสดง':'ซ่อน',link('แก้ไข','/admin/products/'+encodeURIComponent(x.id),'outline small')]))}</section>
       <section class="panel"><h2>${p?'แก้ไขสินค้า':'เพิ่มสินค้า'}</h2>
       ${form('product',typed('ชื่อสินค้า','name',p?.name,true)+typed('หมวดหมู่','category',p?.category,true)+
-        priceInput('ราคา (บาท)','price',p ? p.price/100 : '')+input('จำนวนคงเหลือ','stock',`type="number" min="0" max="1000000" step="1" required value="${p?.stock ?? 0}"`)+
-        area('รายละเอียดสินค้า','description',p?.description)+area('ข้อความหรือ URL สำหรับลูกค้าหลังซื้อ','delivery',p?.delivery)+
+        priceInput('ราคา (บาท)','price',p ? p.price/100 : '')+
+        area('รายละเอียดสินค้า','description',p?.description)+
         uploadInput(p?.image_key?'เลือกรูปใหม่':'รูปสินค้า (ไม่เกิน 4 MB)')+(p?.image_key?`<img class="cover" src="${img(p.image_key)}" alt=""><label class="check"><input type="checkbox" name="remove_image">ลบรูปเดิม</label>`:'')+
         `<label class="check"><input type="checkbox" name="active" ${p?.active===0?'':'checked'}>แสดงในหน้าร้าน</label>`,
         'บันทึกสินค้า', `data-id="${escape(p?.id)}" data-image="${escape(p?.image_key)}" data-revision="${p?.revision ?? 0}"`)}
-      </section></div>`;
+      ${inventory}</section></div>`;
   } else if (section==='users') {
     content = `<section class="panel"><h2>สมาชิกและยอดคงเหลือ</h2>
       ${table(['ชื่อผู้ใช้','อีเมล','ยอดคงเหลือ',''],data.users.map(u=>[escape(u.username),escape(u.email),cash(u.balance),link('ปรับยอด','/admin/users/'+encodeURIComponent(u.id),'outline small')]))}
@@ -190,7 +200,7 @@ async function render(focus = false) {
       else view=adminPanel(section||'products',await api('admin/data'),target);
     } else if (page==='help') view=title('วิธีสั่งซื้อ')+`<section class="panel narrow">
       <details open><summary>เริ่มสั่งซื้ออย่างไร</summary><p>สมัครสมาชิก เข้าสู่ระบบ เติมเงิน และระบุจำนวนในหน้ารายละเอียดสินค้า</p></details>
-      <details><summary>ดูไฟล์หรือข้อความหลังซื้อได้ที่ไหน</summary><p>เปิดเมนูคำสั่งซื้อเพื่อดูสถานะ รายการ และข้อมูลส่งมอบจากร้าน</p></details>
+      <details><summary>ดูรหัสสินค้าหลังซื้อได้ที่ไหน</summary><p>เปิดเมนูคำสั่งซื้อเพื่อดูรหัสของรายการที่ชำระเงินแล้ว</p></details>
       <details><summary>ดูผลตรวจสลิปได้ที่ไหน</summary><p>เปิดเมนูเติมเงิน รายการที่อนุมัติแล้วจะแสดงในประวัติยอดเงิน</p></details></section>`;
     else view=home();
   } catch(error) { view=empty(escape(error.message)); }
@@ -266,10 +276,14 @@ document.addEventListener('submit',async event=>{
         const body=new FormData(); body.set('image',values.image);
         image=(await api('admin/images',body)).key;
       }
-      await api('admin/products',{...values,id:el.dataset.id,image_key:image,image:undefined,price:amount(values.price),stock:Number(values.stock),revision:Number(el.dataset.revision),active:values.active==='on'});
+      const saved=await api('admin/products',{...values,id:el.dataset.id,image_key:image,image:undefined,price:amount(values.price),revision:Number(el.dataset.revision),active:values.active==='on'});
       message('บันทึกสินค้าแล้ว');
       await refresh();
-      if (el.dataset.id) { await go('/admin/products'); return; }
+      await go('/admin/products/'+encodeURIComponent(saved.id)); return;
+    }
+    if(action==='inventory'){
+      const result=await api('admin/inventory',{product:el.dataset.id,codes:values.codes});
+      message('เพิ่มรหัสเข้าสต็อก '+result.added+' ชิ้น');
     }
     if(action==='adjust') {
       if(!window.confirm('ยืนยันปรับยอดเงิน '+cash(amount(values.amount)*Number(values.direction))+' ?')) return;

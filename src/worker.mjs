@@ -1,4 +1,4 @@
-import { shell, stylesheet, client, hero } from './assets.mjs';
+import { shell, stylesheet, client, hero, covers, catalog } from './assets.mjs';
 
 const enc = new TextEncoder();
 const maxUpload = 4 * 1024 * 1024;
@@ -6,10 +6,12 @@ const headers = {
   'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin',
   'content-security-policy': "default-src 'self'; img-src 'self' blob:; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'; form-action 'self'",
 };
+const raster = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
 const assets = new Map([
   ['/style.css', ['text/css; charset=utf-8', stylesheet]],
   ['/app.js', ['text/javascript; charset=utf-8', client]],
-  ['/hero.webp', ['image/webp', Uint8Array.from(atob(hero), c => c.charCodeAt(0))]],
+  ['/hero.webp', ['image/webp', raster(hero)]],
+  ...Object.entries(covers).map(([name, value]) => ['/covers/' + name, ['image/webp', raster(value)]]),
 ]);
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -77,9 +79,9 @@ async function cap(request, maximum) {
   }
   return new Blob(parts);
 }
-async function payload(request) {
+async function payload(request, maximum = 24 * 1024) {
   if (!request.headers.get('content-type')?.startsWith('application/json')) fail(415, 'รูปแบบข้อมูลไม่รองรับ');
-  const bytes = await cap(request, 24 * 1024);
+  const bytes = await cap(request, maximum);
   try {
     const data = JSON.parse(await bytes.text());
     if (data && typeof data === 'object' && !Array.isArray(data)) return data;
@@ -149,6 +151,17 @@ async function imageResponse(env, key, publicImage) {
     'cache-control': publicImage ? 'public, max-age=86400' : 'private, no-store',
   } });
 }
+async function seedCatalog(db) {
+  const key = 'khay-thuk-catalog-v1';
+  if (await one(db, 'SELECT 1 FROM settings WHERE key=?', key)) return;
+  await db.batch([
+    stmt(db, `INSERT INTO products(id,name,category,description,price,stock,active)
+      SELECT value->>'id',value->>'name',value->>'category','',CAST(value->>'price' AS INTEGER),0,1
+      FROM json_each(?) WHERE NOT EXISTS(SELECT 1 FROM settings WHERE key=?)
+      ON CONFLICT(id) DO NOTHING`, JSON.stringify(catalog), key),
+    stmt(db, 'INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING', key, 'loaded'),
+  ]);
+}
 async function api(request, env, url) {
   const db = env.DB;
   const path = url.pathname;
@@ -162,6 +175,7 @@ async function api(request, env, url) {
     (env.LOCAL_SETUP === '1' || request.headers.get('oai-authenticated-user-id')) &&
     !(await one(db, "SELECT id FROM users WHERE role='admin'")));
   if (method === 'GET' && path === '/api/store') {
+    await seedCatalog(db);
     const products = await all(db, `SELECT id,name,category,description,price,stock,image_key
       FROM products WHERE active=1 ORDER BY updated_at DESC LIMIT 500`);
     return respond({ user, products, ownerSetup });
@@ -218,7 +232,9 @@ async function api(request, env, url) {
 
   if (method === 'GET' && path === '/api/account') {
     const [orders, ledger, topups] = await Promise.all([
-      all(db, 'SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100', user.id),
+      all(db, `SELECT o.*, (SELECT json_group_array(code) FROM (
+        SELECT code FROM inventory_codes WHERE order_id=o.id ORDER BY id
+      )) AS codes FROM orders o WHERE o.user_id=? ORDER BY o.created_at DESC,o.rowid DESC LIMIT 100`, user.id),
       all(db, 'SELECT * FROM ledger WHERE user_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100', user.id),
       all(db, 'SELECT id,status,amount,note,created_at FROM topups WHERE user_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100', user.id),
     ]);
@@ -231,7 +247,7 @@ async function api(request, env, url) {
     const quantity = integer(data.quantity, 1, 99);
     const price = integer(data.price, 1, 10000000);
     const order = await one(db, `INSERT INTO orders(id,user_id,request_key,product_id,product_name,quantity,unit_price,total,delivery,status)
-      SELECT ?,u.id,?,p.id,p.name,?,p.price,p.price*?,p.delivery,CASE WHEN p.delivery='' THEN 'confirmed' ELSE 'delivered' END
+      SELECT ?,u.id,?,p.id,p.name,?,p.price,p.price*?,'','delivered'
       FROM products p JOIN users u ON u.id=?
       WHERE p.id=? AND p.active=1 AND p.stock>=? AND p.price=? AND u.balance>=p.price*?
       ON CONFLICT(user_id,request_key) DO NOTHING RETURNING id`,
@@ -275,7 +291,7 @@ async function api(request, env, url) {
   }
   if (method === 'GET' && path === '/api/admin/data') {
     const result = await Promise.all([
-      all(db, 'SELECT * FROM products ORDER BY updated_at DESC LIMIT 500'),
+      all(db, 'SELECT id,name,category,description,price,stock,image_key,active,revision FROM products ORDER BY updated_at DESC LIMIT 500'),
       all(db, 'SELECT id,username,email,display_name,balance,created_at FROM users ORDER BY created_at DESC LIMIT 500'),
       all(db, 'SELECT o.*,u.username FROM orders o JOIN users u ON o.user_id=u.id ORDER BY o.created_at DESC,o.rowid DESC LIMIT 200'),
       all(db, "SELECT t.id,t.status,t.amount,t.reference,t.note,t.created_at,u.username FROM topups t JOIN users u ON t.user_id=u.id ORDER BY (t.status='pending') DESC,t.created_at DESC LIMIT 200"),
@@ -299,18 +315,35 @@ async function api(request, env, url) {
     const image = data.image_key || null;
     if (image && (typeof image !== 'string' || !/^[a-f0-9-]{36}$/.test(image) || !(await env.BUCKET.head('products/' + image)))) fail(400, 'ไม่พบรูปสินค้าที่เลือก');
     const values = [field(data.name, 120), field(data.category, 60), field(data.description, 3000, false),
-      integer(data.price, 1, 10000000), integer(data.stock, 0, 1000000), image,
-      field(data.delivery, 3000, false), data.active === true ? 1 : 0, now()];
+      integer(data.price, 1, 10000000), image, data.active === true ? 1 : 0, now()];
     if (data.id) {
       const revision = integer(data.revision, 0, Number.MAX_SAFE_INTEGER);
-      const result = await run(db, `UPDATE products SET name=?,category=?,description=?,price=?,stock=?,image_key=?,
-        delivery=?,active=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, ...values, productId, revision);
+      const result = await run(db, `UPDATE products SET name=?,category=?,description=?,price=?,image_key=?,
+        active=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, ...values, productId, revision);
       if (!result.meta.changes) fail(409, 'สินค้าหรือสต็อกเพิ่งเปลี่ยน กรุณาเปิดหน้าแก้ไขใหม่');
     } else {
-      await run(db, `INSERT INTO products(id,name,category,description,price,stock,image_key,delivery,active,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?)`, productId, ...values);
+      await run(db, `INSERT INTO products(id,name,category,description,price,image_key,active,updated_at,stock)
+        VALUES(?,?,?,?,?,?,?,?,0)`, productId, ...values);
     }
     return respond({ id: productId });
+  }
+  if (method === 'POST' && path === '/api/admin/inventory') {
+    const data = await payload(request, 192 * 1024);
+    const product = field(data.product, 36);
+    const raw = field(data.codes, 50099);
+    const codes = raw.split(/\r\n|\r|\n/).map(line => line.trim()).filter(Boolean);
+    if (!codes.length || codes.length > 100 || codes.some(code => code.length > 500)) fail(400, 'เพิ่มได้สูงสุด 100 รหัสต่อครั้ง รหัสละไม่เกิน 500 ตัวอักษร');
+    if (new Set(codes).size !== codes.length) fail(409, 'มีรหัสซ้ำในชุดนี้ กรุณาตรวจสอบแล้วลองใหม่');
+    try {
+      const result = await run(db, `INSERT INTO inventory_codes(product_id,code)
+        SELECT ?,value FROM json_each(?) WHERE EXISTS(SELECT 1 FROM products WHERE id=?) ORDER BY CAST(key AS INTEGER)`,
+        product, JSON.stringify(codes), product);
+      if (!result.meta.changes) fail(404, 'ไม่พบสินค้า');
+    } catch (err) {
+      if (/UNIQUE constraint failed: inventory_codes.code/i.test(String(err))) fail(409, 'มีรหัสที่เคยเพิ่มแล้วในชุดนี้ ทั้งชุดยังไม่ถูกเพิ่ม');
+      throw err;
+    }
+    return respond({ added: codes.length }, 201);
   }
   if (method === 'POST' && path === '/api/admin/adjust') {
     const data = await payload(request);

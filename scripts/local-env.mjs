@@ -7,10 +7,15 @@ export function createLocalEnv(directory = null) {
   if (directory) mkdirSync(directory, { recursive:true });
   const sqlite = new DatabaseSync(directory ? join(directory, 'store.sqlite') : ':memory:');
   sqlite.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=4000');
-  if (!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name='users'").get()) {
+  const migrations = [
+    ['users', '0000_store.sql'],
+    ['inventory_codes', '0001_unique_inventory.sql'],
+  ];
+  for (const [table, file] of migrations) {
+    if (sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name=?").get(table)) continue;
     sqlite.exec('BEGIN');
     try {
-      sqlite.exec(readFileSync(new URL('../drizzle/0000_store.sql', import.meta.url), 'utf8'));
+      sqlite.exec(readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8'));
       sqlite.exec('COMMIT');
     } catch (err) { sqlite.exec('ROLLBACK'); throw err; }
   }
