@@ -10,6 +10,7 @@ export function createLocalEnv(directory = null) {
   const migrations = [
     ['users', '0000_store.sql'],
     ['inventory_codes', '0001_unique_inventory.sql'],
+    ['product_groups', '0002_product_groups.sql'],
   ];
   for (const [table, file] of migrations) {
     if (sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name=?").get(table)) continue;

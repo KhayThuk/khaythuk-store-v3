@@ -18,14 +18,14 @@ const typed = (label, name, value = '', required = false) => input(label, name, 
 const priceInput = (label, name, value = '') => input(label, name, `type="number" min="0.01" max="100000" step="0.01" value="${escape(value)}" required`);
 const area = (label, name, value, max = 3000) => `<label>${label}<textarea name="${name}" maxlength="${max}">${escape(value)}</textarea></label>`;
 const uploadInput = (label, required = false) => input(label, 'image', `type="file" accept="image/jpeg,image/png,image/webp" ${required ? 'required' : ''}`);
-const form = (action, content, label, attrs = '') => `<form data-action="${action}" class="fields" ${attrs}>${content}<p class="error" role="alert" hidden></p><div>${button(label)}</div></form>`;
+const form = (action, content, label, attrs = '') => `<form data-action="${action}" class="fields" ${attrs}>${content}<p class="error" role="alert" hidden></p><div>${button(label,'','type="submit"')}</div></form>`;
 const table = (columns, rows, message = 'ยังไม่มีรายการ') => rows.length ? `<div class="table-wrap"><table><thead><tr>${columns.map(c=>`<th scope="col">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : empty(message);
 const coverNames = {
   Netflix:'netflix', iQIYI:'iqiyi', WeTV:'wetv', Viu:'viu', 'Prime Video':'prime-video',
   Gmail:'gmail', Monomax:'monomax', 'Disney+':'disney', TrueID:'trueid', 'Ch3+':'ch3',
   YouTube:'youtube', Bilibili:'bilibili',
 };
-let store = { products:[], user:null, ownerSetup:false };
+let store = { products:[], groups:[], user:null, ownerSetup:false };
 let pageSequence = 0;
 let alertTimer;
 function message(text) {
@@ -54,51 +54,81 @@ async function refresh() {
   ].join('') : (ownerSetup ? link('ตั้งค่าร้าน','/setup','small outline') : '') + link('เข้าสู่ระบบ','/login','small');
 }
 function cover(product) {
-  const file = Object.hasOwn(coverNames, product.category) ? coverNames[product.category] : null;
+  const category = product.cover_category || product.category || product.name;
+  const file = Object.hasOwn(coverNames, category) ? coverNames[category] : null;
   const url = product.image_key ? img(product.image_key) : file && '/covers/' + file + '.webp';
-  return url ? `<img class="cover" src="${url}" alt="${escape(product.category)}">`
-    : `<div class="tile"><span>${escape(product.category)}</span></div>`;
+  return url ? `<img class="cover" src="${url}" alt="${escape(category)}">`
+    : `<div class="tile"><span>${escape(category)}</span></div>`;
+}
+const variantsFor = (products, id) => products.filter(p => p.group_id === id);
+const packageInfo = p => [p.days ? p.days + ' วัน' : '', p.shares ? 'หาร ' + p.shares : ''].filter(Boolean).join(' · ');
+const appPath = group => '/app/' + encodeURIComponent(group.id);
+function groupCards(groups) {
+  if (!groups.length) return empty('ไม่พบแอปที่ตรงกับการค้นหา');
+  return groups.map(group => {
+    const packages = variantsFor(store.products, group.id);
+    const price = Math.min(...packages.map(p => p.price));
+    return `<a class="card" href="#${appPath(group)}">${cover(group)}
+      <div class="card-body"><h3>${escape(group.name)}</h3><div class="row">
+      <span class="price">เริ่ม ${cash(price)}</span><span class="pill">${packages.length} แพ็กเกจ</span></div></div></a>`;
+  }).join('');
+}
+function appPage(id, filter) {
+  const group = store.groups.find(item => item.id === id);
+  if (!group) return title('ไม่พบแอป') + link('กลับหน้าสินค้าทั้งหมด','/shop','outline');
+  const packages = variantsFor(store.products, id).sort((a,b) => (a.days ?? 9999) - (b.days ?? 9999) || a.price - b.price);
+  const days = [...new Set(packages.map(p=>p.days).filter(Boolean))];
+  const visible = filter ? packages.filter(p => p.days === Number(filter)) : packages;
+  return `<p class="muted"><a href="#/shop">สินค้าทั้งหมด</a> / ${escape(group.name)}</p>` +
+    title(escape(group.name), escape(group.description || 'เลือกแพ็กเกจเพื่อดูรายละเอียดและระบุจำนวน')) +
+    (days.length ? `<nav class="admin-nav package-filters" aria-label="ระยะเวลาแพ็กเกจ">${link('ทั้งหมด',appPath(group),filter?'outline small':'small')}
+      ${days.map(day=>link(day+' วัน',appPath(group)+'/'+day,Number(filter)===day?'small':'outline small')).join('')}</nav>` : '') +
+    `<div class="grid">${productCards(visible)}</div>`;
+}
+function productCover(p) {
+  const group = store.groups.find(g => g.id === p.group_id);
+  return cover({...p, cover_category:group?.cover_category, image_key:p.image_key || group?.image_key});
 }
 function productCards(products) {
-  if (!products.length) return empty('ไม่มีสินค้าที่ตรงกับการค้นหา');
-  return products.map(p => `<a class="card" href="#/product/${encodeURIComponent(p.id)}">${cover(p)}
-    <div class="card-body"><span class="muted meta">${escape(p.category)}</span><h3>${escape(p.name)}</h3>
+  if (!products.length) return empty('ไม่มีแพ็กเกจในระยะเวลานี้');
+  return products.map(p => `<a class="card" href="#/product/${encodeURIComponent(p.id)}">${productCover(p)}
+    <div class="card-body"><h3>${escape(p.name)}</h3>${packageInfo(p)?`<span class="meta muted">${packageInfo(p)}</span>`:''}
     <div class="row"><span class="price">${cash(p.price)}</span><span class="pill">${p.stock ? 'คงเหลือ ' + p.stock : 'สินค้าหมด'}</span></div></div></a>`).join('');
 }
 function home() {
-  const products = store.products.slice(0,6);
+  const groups = store.groups.slice(0,6);
   return `<section class="hero"><div class="hero-copy"><h1 class="hero-title">รหัสดิจิทัล<br><span>Khay Thuk</span></h1><p>เลือกแพ็กเกจ เติมเงิน และเปิดดูรหัสของคุณได้ทันทีหลังสั่งซื้อ</p>${link('เลือกดูสินค้า','/shop','light')}</div><div class="hero-image" role="img" aria-label="รีโมตและหูฟังกับจอทีวีสีน้ำเงิน"></div></section>
   <div class="quick"><a href="#/${store.user?'wallet':'signup'}"><span class="quick-icon" aria-hidden="true">+</span><span><strong>${store.user?'กระเป๋าเงิน':'สมัครสมาชิก'}</strong><small>${store.user?'ดูยอดเงินและรายการล่าสุด':'สร้างบัญชีเพื่อเริ่มสั่งซื้อ'}</small></span></a>
   <a href="#/wallet"><span class="quick-icon" aria-hidden="true">฿</span><span><strong>เติมเงิน</strong><small>โอนเงินและส่งสลิป</small></span></a>
   <a href="#/orders"><span class="quick-icon" aria-hidden="true">✓</span><span><strong>คำสั่งซื้อ</strong><small>ดูสถานะและสินค้าที่ได้รับ</small></span></a></div>
   <div class="section-head"><div><h2>สินค้าแนะนำ</h2><p>เลือกดูแพ็กเกจจากแอปที่คุณใช้</p></div>${link('สินค้าทั้งหมด','/shop','outline small')}</div>
-  <div class="grid">${productCards(products)}</div>`;
+  <div class="grid">${groupCards(groups)}</div>`;
 }
 function shop() {
-  const names = [...new Set(store.products.map(p => p.category))].sort((a,b)=>a.localeCompare(b,'th'));
-  return title('สินค้าทั้งหมด','ค้นหาสินค้าหรือเลือกหมวดหมู่') +
-    `<div class="filters"><input type="search" id="search-product" placeholder="ค้นหาสินค้า" aria-label="ค้นหาสินค้า"><select id="category" aria-label="หมวดหมู่"><option value="">ทุกหมวดหมู่</option>${names.map(c=>`<option>${escape(c)}</option>`).join('')}</select></div>
-    <div class="grid" id="catalog">${store.products.length ? productCards(store.products) : empty('ร้านกำลังจัดเตรียมสินค้า')}</div>`;
+  return title('สินค้าทั้งหมด','เลือกแอปเพื่อดูแพ็กเกจที่มี') +
+    `<div class="filters"><input type="search" id="search-product" placeholder="ค้นหาแอปหรือแพ็กเกจ" aria-label="ค้นหาแอปหรือแพ็กเกจ"></div>
+    <div class="grid" id="catalog">${groupCards(store.groups)}</div>`;
 }
 function product(id) {
   const p = store.products.find(item => item.id===id);
   if (!p) return title('ไม่พบสินค้า') + link('กลับหน้าสินค้า','/shop','outline');
+  const group = store.groups.find(g => g.id === p.group_id);
   const orderForm = p.stock ? store.user ? form('buy',
     input('จำนวน','quantity',`type="number" min="1" max="${Math.min(99,p.stock)}" value="1" required`) +
     `<p>ยอดรวม <strong id="order-total">${cash(p.price)}</strong></p><p class="muted">ยอดเงินในกระเป๋า ${cash(store.user.balance)}</p>`,
-    'ยืนยันสั่งซื้อ', `data-id="${escape(p.id)}" data-price="${p.price}"`) : link('เข้าสู่ระบบเพื่อซื้อ','/login') : note('สินค้าหมด');
-  return `<p class="muted"><a href="#/shop">สินค้าทั้งหมด</a> / ${escape(p.category)}</p>` + title(escape(p.name)) +
-    `<section class="split"><div class="card">${cover(p)}</div><div class="panel"><div class="row"><span class="price">${cash(p.price)}</span><span class="pill">เหลือ ${p.stock} ชิ้น</span></div>
+    'ยืนยันสั่งซื้อ', `data-id="${escape(p.id)}" data-price="${p.price}"`) : link('เข้าสู่ระบบเพื่อซื้อ','/login/'+encodeURIComponent(p.id)) : note('สินค้าหมด');
+  return `<p class="muted"><a href="#/shop">สินค้าทั้งหมด</a> / ${group ? `<a href="#${appPath(group)}">${escape(group.name)}</a>` : escape(p.category)}</p>` + title(escape(p.name), packageInfo(p)) +
+    `<section class="split"><div class="card">${productCover(p)}</div><div class="panel"><div class="row"><span class="price">${cash(p.price)}</span><span class="pill">เหลือ ${p.stock} ชิ้น</span></div>
     <p class="delivery">${escape(p.description)}</p>${orderForm}</div></section>`;
 }
-function auth(signup) {
+function auth(signup, productId) {
   const name = signup ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
   return `<div class="narrow">${title(name)}<section class="panel">${form(signup?'signup':'login',
     (signup ? input('ชื่อที่ใช้แสดง','display_name','required maxlength="80" autocomplete="name"') : '') +
     input('ชื่อผู้ใช้','username','required minlength="3" maxlength="32" autocomplete="username"') +
     (signup ? input('อีเมล','email','type="email" required maxlength="254" autocomplete="email"'):'') +
     input(signup?'รหัสผ่าน (อย่างน้อย 12 ตัวอักษร)':'รหัสผ่าน','password',`type="password" required maxlength="128" ${signup?'minlength="12" autocomplete="new-password"':'autocomplete="current-password"'}`),
-    name)}<p><a href="#/${signup?'login':'signup'}">${signup?'มีบัญชีแล้ว · เข้าสู่ระบบ':'ยังไม่มีบัญชี · สมัครสมาชิก'}</a></p></section></div>`;
+    name, `data-product="${escape(productId)}"`)}<p><a href="#/${signup?'login':'signup'}${productId?'/'+encodeURIComponent(productId):''}">${signup?'มีบัญชีแล้ว · เข้าสู่ระบบ':'ยังไม่มีบัญชี · สมัครสมาชิก'}</a></p></section></div>`;
 }
 function setup() {
   return `<div class="narrow">${title('ตั้งค่าบัญชีเจ้าของร้าน')}<section class="panel">${store.ownerSetup ?
@@ -129,25 +159,59 @@ function orders(d) {
     `<article class="panel"><div class="row"><h2>${escape(o.product_name)}</h2>${badge(o.status)}</div><p>${o.quantity} ชิ้น · ${cash(o.total)} · ${date(o.created_at)}</p>
     <p class="muted mono">${escape(o.id)}</p>${deliveredContent(o)}</article>`).join('') : empty('ยังไม่มีคำสั่งซื้อ')}</div>`;
 }
-function adminPanel(section, data, target) {
+function imageFields(p, label) {
+  return uploadInput(label) + (p?.image_key ? `<img class="cover" src="${img(p.image_key)}" alt="">
+    <label class="check"><input type="checkbox" name="remove_image">ใช้ภาพปกของแอปหรือภาพเริ่มต้น</label>` : '');
+}
+function variantFields(p) {
+  const numeric = (label, name, max, value) => input(label,name,
+    `type="number" min="1" max="${max}" step="1" value="${value ?? ''}"`);
+  return typed('ชื่อแพ็กเกจ','name',p?.name,true) +
+    `<div class="variant-fields">${numeric('จำนวนวัน','days',3650,p?.days)}
+      ${numeric('จำนวนคนที่หาร','shares',100,p?.shares)}
+      ${priceInput('ราคา (บาท)','price',p ? p.price/100 : '')}</div>` +
+    `<label class="check"><input type="checkbox" name="active" ${p?.active===0?'':'checked'}>แสดงในหน้าร้าน</label>`;
+}
+function draftVariant() {
+  return `<fieldset class="variant-draft fields" data-variant><legend>แพ็กเกจใหม่</legend>${variantFields()}
+    <div>${button('ลบตัวเลือกนี้','small outline','type="button" data-remove-variant')}</div></fieldset>`;
+}
+function groupEditor(group, data) {
+  const packages = group ? variantsFor(data.products, group.id) : [];
+  const listing = group ? `<section class="panel"><h2>แพ็กเกจของ ${escape(group.name)}</h2>
+    ${table(['ชื่อแพ็กเกจ','ระยะเวลา / หาร','ราคา','สต็อก',''],packages.map(p=>[escape(p.name),packageInfo(p)||'—',
+      cash(p.price),p.stock,link('แก้ไขแพ็กเกจ','/admin/products/'+encodeURIComponent(p.id),'outline small')]))}</section>` : '';
+  const editor = form('group',
+    input('ชื่อแอป','group_name',`required maxlength="60" value="${escape(group?.name)}"`) +
+    area('รายละเอียดแอป','description',group?.description) + imageFields(group,'ภาพปกแอป (ไม่เกิน 4 MB)') +
+    `<div class="inventory"><h3>เพิ่มตัวเลือกแพ็กเกจ</h3><div class="stack" data-variant-list>${group?'':draftVariant()}</div>
+      <div>${button('เพิ่มตัวเลือก','small outline','type="button" data-add-variant')}</div></div>`,
+    group?'บันทึกแอปและตัวเลือก':'สร้างแอปและตัวเลือก',
+    `data-id="${escape(group?.id)}" data-image="${escape(group?.image_key)}"`);
+  return `<section class="panel"><h2>${group?'แก้ไขแอป':'เพิ่มรายการสินค้า'}</h2>${editor}</section>${listing}`;
+}
+function variantEditor(p) {
+    const inventory = `<section class="inventory"><div class="row"><h2>รหัสสินค้าหลังสั่งซื้อ</h2><span class="pill">คงเหลือ ${p.stock} ชิ้น</span></div>
+      <p class="muted">วางหนึ่งรหัสต่อหนึ่งบรรทัด ระบบจะส่งรหัสตามลำดับที่เพิ่มเข้า และนำรหัสที่ส่งแล้วออกจากสต็อก</p>
+      ${form('inventory', `<label>เพิ่มรหัสสินค้า<textarea name="codes" required maxlength="50099" spellcheck="false" autocomplete="off" rows="6"></textarea>
+      <small>เพิ่มได้สูงสุด 100 บรรทัดต่อครั้ง</small></label>`, 'เพิ่มรหัสเข้าสต็อก', `data-id="${escape(p.id)}"`)}</section>`;
+  return `<section class="panel"><div class="row"><h2>แก้ไขแพ็กเกจ</h2>
+    ${link('กลับไปที่ '+escape(p.category),'/admin/products/app/'+encodeURIComponent(p.group_id),'small outline')}</div>
+    ${form('product',variantFields(p)+area('รายละเอียดแพ็กเกจ','description',p.description)+imageFields(p,'รูปแพ็กเกจ (ไม่เกิน 4 MB)'),
+      'บันทึกแพ็กเกจ', `data-id="${escape(p.id)}" data-group="${escape(p.group_id)}" data-image="${escape(p.image_key)}" data-revision="${p.revision}"`)}
+    ${inventory}</section>`;
+}
+function adminPanel(section, data, target, appId) {
   const tabs = [['products','สินค้า'],['users','สมาชิก'],['orders','คำสั่งซื้อ'],['topups','ตรวจสลิป'],['ledger','ประวัติยอดเงิน'],['settings','บัญชีรับเงิน']];
   let content;
   if (section==='products') {
-    const p = data.products.find(x=>x.id===target);
-    const inventory = p ? `<section class="inventory"><div class="row"><h2>รหัสสินค้าหลังสั่งซื้อ</h2><span class="pill">คงเหลือ ${p.stock} ชิ้น</span></div>
-      <p class="muted">วางหนึ่งรหัสต่อหนึ่งบรรทัด ระบบจะส่งรหัสตามลำดับที่เพิ่มเข้า และนำรหัสที่ส่งแล้วออกจากสต็อก</p>
-      ${form('inventory', `<label>เพิ่มรหัสสินค้า<textarea name="codes" required maxlength="50099" spellcheck="false" autocomplete="off" rows="6"></textarea>
-      <small>เพิ่มได้สูงสุด 100 บรรทัดต่อครั้ง</small></label>`, 'เพิ่มรหัสเข้าสต็อก', `data-id="${escape(p.id)}"`)}</section>` : '';
-    content = `<div class="split admin-products"><section class="panel"><div class="row"><h2>รายการสินค้า</h2>${p?link('เพิ่มสินค้าใหม่','/admin/products','outline small'):''}</div>
-      ${table(['สินค้า','ราคา','สต็อก','เผยแพร่',''],data.products.map(x=>[escape(x.name),cash(x.price),x.stock,x.active?'แสดง':'ซ่อน',link('แก้ไข','/admin/products/'+encodeURIComponent(x.id),'outline small')]))}</section>
-      <section class="panel"><h2>${p?'แก้ไขสินค้า':'เพิ่มสินค้า'}</h2>
-      ${form('product',typed('ชื่อสินค้า','name',p?.name,true)+typed('หมวดหมู่','category',p?.category,true)+
-        priceInput('ราคา (บาท)','price',p ? p.price/100 : '')+
-        area('รายละเอียดสินค้า','description',p?.description)+
-        uploadInput(p?.image_key?'เลือกรูปใหม่':'รูปสินค้า (ไม่เกิน 4 MB)')+(p?.image_key?`<img class="cover" src="${img(p.image_key)}" alt=""><label class="check"><input type="checkbox" name="remove_image">ลบรูปเดิม</label>`:'')+
-        `<label class="check"><input type="checkbox" name="active" ${p?.active===0?'':'checked'}>แสดงในหน้าร้าน</label>`,
-        'บันทึกสินค้า', `data-id="${escape(p?.id)}" data-image="${escape(p?.image_key)}" data-revision="${p?.revision ?? 0}"`)}
-      ${inventory}</section></div>`;
+    const product = data.products.find(p=>p.id===target);
+    const group = data.groups.find(g=>g.id===appId);
+    content = `<div class="split admin-products"><section class="panel"><div class="row"><h2>แอปทั้งหมด</h2>
+      ${link('เพิ่มรายการสินค้า','/admin/products','outline small')}</div>
+      ${table(['แอป','แพ็กเกจ',''],data.groups.map(g=>[escape(g.name),variantsFor(data.products,g.id).length,
+        link('จัดการตัวเลือก','/admin/products/app/'+encodeURIComponent(g.id),'outline small')]))}</section>
+      <div class="stack">${product ? variantEditor(product) : groupEditor(group,data)}</div></div>`;
   } else if (section==='users') {
     content = `<section class="panel"><h2>สมาชิกและยอดคงเหลือ</h2>
       ${table(['ชื่อผู้ใช้','อีเมล','ยอดคงเหลือ',''],data.users.map(u=>[escape(u.username),escape(u.email),cash(u.balance),link('ปรับยอด','/admin/users/'+encodeURIComponent(u.id),'outline small')]))}
@@ -184,12 +248,13 @@ function adminPanel(section, data, target) {
 }
 async function render(focus = false) {
   const active = ++pageSequence;
-  const [page, section, target] = (location.hash.slice(2) || '').split('/');
+  const [page, section, target, appId] = (location.hash.slice(2) || '').split('/');
   let view;
   try {
     if (page==='shop') view=shop();
+    else if (page==='app') view=appPage(section,target);
     else if (page==='product') view=product(section);
-    else if (page==='login'||page==='signup') view=auth(page==='signup');
+    else if (page==='login'||page==='signup') view=auth(page==='signup',section);
     else if (page==='setup') view=setup();
     else if (page==='wallet'||page==='orders') {
       if (!store.user) view=gate(page==='wallet'?'กระเป๋าเงิน':'คำสั่งซื้อ');
@@ -197,7 +262,7 @@ async function render(focus = false) {
     } else if (page==='admin') {
       if (!store.user) view=gate('จัดการร้าน');
       else if(store.user.role!=='admin') view=title('บัญชีนี้ไม่มีสิทธิ์จัดการร้าน');
-      else view=adminPanel(section||'products',await api('admin/data'),target);
+      else view=adminPanel(section||'products',await api('admin/data'),target,appId);
     } else if (page==='help') view=title('วิธีสั่งซื้อ')+`<section class="panel narrow">
       <details open><summary>เริ่มสั่งซื้ออย่างไร</summary><p>สมัครสมาชิก เข้าสู่ระบบ เติมเงิน และระบุจำนวนในหน้ารายละเอียดสินค้า</p></details>
       <details><summary>ดูรหัสสินค้าหลังซื้อได้ที่ไหน</summary><p>เปิดเมนูคำสั่งซื้อเพื่อดูรหัสของรายการที่ชำระเงินแล้ว</p></details>
@@ -214,22 +279,36 @@ function go(path) {
 }
 function filterCatalog() {
   const search=document.querySelector('#search-product');
-  const category=document.querySelector('#category');
   const output=document.querySelector('#catalog');
   if (!search||!output) return;
   const needle=search.value.trim().toLocaleLowerCase();
-  const result=store.products.filter(p=>(!category.value||p.category===category.value)&&
-    [p.name,p.category,p.description].some(s=>s.toLocaleLowerCase().includes(needle)));
-  output.innerHTML=productCards(result);
+  const matches = value => value.toLocaleLowerCase().includes(needle);
+  output.innerHTML=groupCards(store.groups.filter(group => matches(group.name) ||
+    variantsFor(store.products, group.id).some(p => matches(p.name) || matches(packageInfo(p)))));
 }
 document.addEventListener('input', event=>{
-  if(['search-product','category'].includes(event.target.id)) filterCatalog();
+  if(event.target.id==='search-product') filterCatalog();
   if(event.target.name==='quantity') {
     const total=document.querySelector('#order-total');
     if(total) total.textContent=cash(Number(event.target.value)*Number(event.target.form.dataset.price));
   }
 });
 document.addEventListener('click',async event=>{
+  const add = event.target.closest('[data-add-variant]');
+  if (add) {
+    const list = add.form.querySelector('[data-variant-list]');
+    if (list.children.length >= 50) { message('เพิ่มได้สูงสุด 50 ตัวเลือกต่อครั้ง'); return; }
+    list.insertAdjacentHTML('beforeend',draftVariant());
+    list.lastElementChild.querySelector('input').focus();
+    return;
+  }
+  const remove = event.target.closest('[data-remove-variant]');
+  if (remove) {
+    const addButton = remove.form.querySelector('[data-add-variant]');
+    remove.closest('[data-variant]').remove();
+    addButton.focus();
+    return;
+  }
   const logout=event.target.closest('[data-logout]');
   if(!logout) return;
   logout.disabled=true;
@@ -238,13 +317,17 @@ document.addEventListener('click',async event=>{
   finally { logout.disabled=false; }
 });
 function amount(value) { return Math.round(Number(value)*100); }
+function readVariant(values) {
+  return {name:values.name, days:values.days ? Number(values.days) : null,
+    shares:values.shares ? Number(values.shares) : null, price:amount(values.price), active:values.active==='on'};
+}
 document.addEventListener('submit',async event=>{
   const el=event.target;
   const action=el.dataset.action;
   if(!action) return;
   event.preventDefault();
   const errorEl=el.querySelector('.error');
-  const submit=el.querySelector('button');
+  const submit=el.querySelector('button[type=submit]');
   if(submit.disabled) return;
   errorEl.hidden=true;
   submit.disabled=true;
@@ -261,7 +344,7 @@ document.addEventListener('submit',async event=>{
         ${note('บันทึกรหัสผ่านนี้ในตัวจัดการรหัสผ่านก่อนออกจากหน้านี้')}${link('ไปที่หลังร้าน','/admin')}</section></div>`;
       return;
     }
-    if(action==='login'||action==='signup'){await api(action,values); await refresh(); await go(store.user?.role==='admin'?'/admin':'/shop'); return;}
+    if(action==='login'||action==='signup'){await api(action,values); await refresh(); await go(el.dataset.product ? '/product/'+encodeURIComponent(el.dataset.product) : store.user?.role==='admin'?'/admin':'/shop'); return;}
     if(action==='buy'){
       const quantity=Number(values.quantity), price=Number(el.dataset.price);
       if(!window.confirm('ยืนยันซื้อ '+quantity+' ชิ้น รวม '+cash(quantity*price)+' จากกระเป๋าเงิน?')) return;
@@ -270,16 +353,24 @@ document.addEventListener('submit',async event=>{
     if(action==='topup'){
       const t=await api('topups',fields); message('ส่งสลิปแล้ว · '+labels[t.status]);
     }
-    if(action==='product') {
+    if(action==='product'||action==='group') {
       let image=values.remove_image ? null : el.dataset.image || null;
       if(values.image?.size){
         const body=new FormData(); body.set('image',values.image);
         image=(await api('admin/images',body)).key;
       }
-      const saved=await api('admin/products',{...values,id:el.dataset.id,image_key:image,image:undefined,price:amount(values.price),revision:Number(el.dataset.revision),active:values.active==='on'});
-      message('บันทึกสินค้าแล้ว');
-      await refresh();
-      await go('/admin/products/'+encodeURIComponent(saved.id)); return;
+      const metadata = {id:el.dataset.id, name:values.name, description:values.description, image_key:image};
+      if(action==='group') {
+        const variants = Array.from(el.querySelectorAll('[data-variant]'),row=>readVariant(
+          Object.fromEntries(Array.from(row.querySelectorAll('input'),input=>[input.name,input.type==='checkbox'?(input.checked?'on':''):input.value]))
+        ));
+        const saved=await api('admin/groups',{...metadata,name:values.group_name,variants});
+        await refresh(); await go('/admin/products/app/'+encodeURIComponent(saved.id));
+        message('บันทึกแอปและตัวเลือกแล้ว'); return;
+      }
+      const saved=await api('admin/products',{...metadata,...readVariant(values),group_id:el.dataset.group,revision:Number(el.dataset.revision)});
+      await refresh(); await go('/admin/products/'+encodeURIComponent(saved.id));
+      message('บันทึกแพ็กเกจแล้ว'); return;
     }
     if(action==='inventory'){
       const result=await api('admin/inventory',{product:el.dataset.id,codes:values.codes});

@@ -146,3 +146,37 @@ test('reference catalog, ordered allocation, mixed duplicate batch rollback and 
   assert.equal(JSON.parse(publicJson).products.find(p=>p.id===product).stock,0);
   assert.equal((await call('admin/inventory',{product,codes:'0001541'},admin)).status,409);
 });
+
+test('one app owns multiple editable packages with independent stock', async () => {
+  const {call,auth}=fixture();
+  const admin=auth(await call('setup',{}));
+  const seeded=await (await call('store')).json();
+  assert.equal(seeded.groups.length,12);
+  const netflix=seeded.groups.find(g=>g.name==='Netflix');
+  assert.equal(seeded.products.filter(p=>p.group_id===netflix.id).length,13);
+  assert.deepEqual([...new Set(seeded.products.filter(p=>p.group_id===netflix.id).map(p=>p.days))].sort((a,b)=>a-b),[1,7,30]);
+  const viu=seeded.groups.find(g=>g.name==='Viu');
+  assert.ok(seeded.products.some(p=>p.group_id===viu.id&&p.days===30&&p.shares===4));
+
+  const variants=[
+    {name:'7 วัน',days:7,shares:4,price:500,active:true},
+    {name:'30 วัน',days:30,shares:2,price:1200,active:true},
+  ];
+  const response=await call('admin/groups',{name:'App Test',variants},admin);
+  assert.equal(response.status,201);
+  const group=await response.json();
+  assert.equal((await call('admin/groups',{name:'App Test',variants},admin)).status,409);
+  assert.equal((await call('admin/groups',{id:group.id,name:'Renamed Test',variants:[{...variants[0],days:0}]},admin)).status,400);
+  assert.equal((await call('admin/groups',{id:group.id,name:'App Test',variants:[{name:'90 วัน',days:90,price:3500,active:false}]},admin)).status,200);
+  const adminData=await (await call('admin/data',undefined,admin)).json();
+  assert.equal(adminData.products.filter(p=>p.group_id===group.id).length,3);
+  const p=adminData.products.find(p=>p.group_id===group.id&&p.days===30);
+  assert.equal((await call('admin/inventory',{product:p.id,codes:'GROUP-STOCK-ONE'},admin)).status,201);
+  const store=await (await call('store')).json();
+  assert.equal(store.groups.filter(g=>g.id===group.id).length,1);
+  const packages=store.products.filter(p=>p.group_id===group.id).sort((a,b)=>a.days-b.days);
+  assert.deepEqual(packages.map(p=>[p.days,p.shares,p.stock]),[[7,4,0],[30,2,1]]);
+  assert.equal((await call('admin/products',{id:p.id,group_id:group.id,name:'30 วัน · หาร 3',days:30,shares:3,price:1300,active:true,revision:p.revision+1},admin)).status,200);
+  const updated=(await (await call('store')).json()).products.find(item=>item.id===p.id);
+  assert.deepEqual([updated.days,updated.shares,updated.price,updated.stock],[30,3,1300,1]);
+});

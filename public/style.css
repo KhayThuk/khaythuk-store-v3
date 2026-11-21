@@ -7,3 +7,4 @@ main{min-height:70vh;padding-block:28px 72px}.hero{display:grid;grid-template-co
 
 .order-codes{margin:8px 0 0;padding-left:25px}.order-codes li+li{margin-top:4px}.order-codes code{white-space:pre-wrap}.mark{font-size:1.05rem;font-weight:850}.card .cover{aspect-ratio:16/9}.hero-image{background-position:center 55%}
 .inventory{display:grid;gap:10px;padding-top:16px;border-top:1px solid var(--line)}.admin-products .table-wrap{max-height:32rem}.admin-products thead{position:sticky;top:0;background:var(--white)}
+.package-filters{margin-bottom:18px}.variant-draft{border:1px solid var(--line);border-radius:12px;margin:0;padding:13px;min-width:0}.variant-draft legend{padding-inline:5px;font-weight:750}.variant-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,115px),1fr));gap:8px}.variant-fields input{min-width:0}

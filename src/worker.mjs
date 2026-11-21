@@ -151,14 +151,39 @@ async function imageResponse(env, key, publicImage) {
     'cache-control': publicImage ? 'public, max-age=86400' : 'private, no-store',
   } });
 }
+const selectProducts = `SELECT p.id,p.name,COALESCE(g.name,p.category) AS category,p.description,p.price,p.stock,
+  p.image_key,p.group_id,p.days,p.shares,p.active,p.revision
+  FROM products p LEFT JOIN product_groups g ON g.id=p.group_id`;
+const listGroups = db => all(db, 'SELECT * FROM product_groups ORDER BY name COLLATE NOCASE');
+const optionalInteger = (value, maximum) => value == null ? null : integer(value, 1, maximum);
+function variantValues(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) fail(400, 'ข้อมูลตัวเลือกไม่ถูกต้อง');
+  return [field(data.name, 120), field(data.description ?? '', 3000, false), integer(data.price, 1, 10000000),
+    optionalInteger(data.days, 3650), optionalInteger(data.shares, 100), data.active === true ? 1 : 0];
+}
+function insertVariant(db, group, values, image = null) {
+  return stmt(db, `INSERT INTO products(id,group_id,category,name,description,price,days,shares,active,image_key,stock)
+    VALUES(?,?,?,?,?,?,?,?,?,?,0)`, id(), group.id, group.name, ...values, image);
+}
+async function productImage(env, value) {
+  if (!value) return null;
+  if (typeof value !== 'string' || !/^[a-f0-9-]{36}$/.test(value) || !(await env.BUCKET.head('products/' + value))) fail(400, 'ไม่พบรูปสินค้าที่เลือก');
+  return value;
+}
 async function seedCatalog(db) {
   const key = 'khay-thuk-catalog-v1';
   if (await one(db, 'SELECT 1 FROM settings WHERE key=?', key)) return;
+  const items = catalog.map(p => ({...p, days: Number(p.name.match(/(\d+) วัน/)?.[1]) || null,
+    shares: Number(p.name.match(/แชร์ (\d+)/)?.[1]) || null}));
+  const groups = [...new Set(items.map(p => p.category))];
   await db.batch([
-    stmt(db, `INSERT INTO products(id,name,category,description,price,stock,active)
-      SELECT value->>'id',value->>'name',value->>'category','',CAST(value->>'price' AS INTEGER),0,1
-      FROM json_each(?) WHERE NOT EXISTS(SELECT 1 FROM settings WHERE key=?)
-      ON CONFLICT(id) DO NOTHING`, JSON.stringify(catalog), key),
+    ...groups.map(name => stmt(db, 'INSERT INTO product_groups(id,name,cover_category) VALUES(?,?,?) ON CONFLICT(name) DO NOTHING', id(), name, name)),
+    stmt(db, `INSERT INTO products(id,group_id,name,category,description,price,days,shares,active,stock)
+      SELECT value->>'id',g.id,value->>'name',g.name,'',CAST(value->>'price' AS INTEGER),
+      CAST(value->>'days' AS INTEGER),CAST(value->>'shares' AS INTEGER),1,0
+      FROM json_each(?) JOIN product_groups g ON g.name=(value->>'category')
+      WHERE NOT EXISTS(SELECT 1 FROM settings WHERE key=?)
+      ON CONFLICT(id) DO NOTHING`, JSON.stringify(items), key),
     stmt(db, 'INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING', key, 'loaded'),
   ]);
 }
@@ -176,9 +201,11 @@ async function api(request, env, url) {
     !(await one(db, "SELECT id FROM users WHERE role='admin'")));
   if (method === 'GET' && path === '/api/store') {
     await seedCatalog(db);
-    const products = await all(db, `SELECT id,name,category,description,price,stock,image_key
-      FROM products WHERE active=1 ORDER BY updated_at DESC LIMIT 500`);
-    return respond({ user, products, ownerSetup });
+    const [products, groups] = await Promise.all([
+      all(db, selectProducts + ' WHERE p.active=1 ORDER BY p.updated_at DESC LIMIT 500'), listGroups(db),
+    ]);
+    const listed = new Set(products.map(p => p.group_id));
+    return respond({ user, products, groups: groups.filter(g => listed.has(g.id)), ownerSetup });
   }
   if (method === 'GET' && /^\/api\/images\/[a-f0-9-]{36}$/.test(path)) return imageResponse(env, 'products/' + path.split('/').at(-1), true);
 
@@ -291,15 +318,16 @@ async function api(request, env, url) {
   }
   if (method === 'GET' && path === '/api/admin/data') {
     const result = await Promise.all([
-      all(db, 'SELECT id,name,category,description,price,stock,image_key,active,revision FROM products ORDER BY updated_at DESC LIMIT 500'),
+      all(db, selectProducts + ' ORDER BY p.updated_at DESC LIMIT 500'),
+      listGroups(db),
       all(db, 'SELECT id,username,email,display_name,balance,created_at FROM users ORDER BY created_at DESC LIMIT 500'),
       all(db, 'SELECT o.*,u.username FROM orders o JOIN users u ON o.user_id=u.id ORDER BY o.created_at DESC,o.rowid DESC LIMIT 200'),
       all(db, "SELECT t.id,t.status,t.amount,t.reference,t.note,t.created_at,u.username FROM topups t JOIN users u ON t.user_id=u.id ORDER BY (t.status='pending') DESC,t.created_at DESC LIMIT 200"),
       all(db, 'SELECT l.*,u.username,a.username AS actor FROM ledger l JOIN users u ON u.id=l.user_id LEFT JOIN users a ON a.id=l.actor_id ORDER BY l.created_at DESC,l.rowid DESC LIMIT 200'),
       storeSettings(db),
     ]);
-    const [products, users, orders, topups, ledger, settings] = result;
-    return respond({ products, users, orders, topups, ledger, settings, auto: autoEnabled(env) });
+    const [products, groups, users, orders, topups, ledger, settings] = result;
+    return respond({ products, groups, users, orders, topups, ledger, settings, auto: autoEnabled(env) });
   }
   if (method === 'GET' && /^\/api\/admin\/slips\/[a-f0-9-]{36}$/.test(path)) return imageResponse(env, 'slips/' + path.split('/').at(-1), false);
 
@@ -309,21 +337,47 @@ async function api(request, env, url) {
     await env.BUCKET.put('products/' + key, bytes, { httpMetadata: { contentType: mime } });
     return respond({ key }, 201);
   }
+  if (method === 'POST' && path === '/api/admin/groups') {
+    const data = await payload(request, 384 * 1024);
+    const groupId = data.id ? field(data.id, 36) : id();
+    const name = field(data.name, 60);
+    const description = field(data.description ?? '', 3000, false);
+    const image = await productImage(env, data.image_key);
+    if (!Array.isArray(data.variants) || data.variants.length > 50 || (!data.id && !data.variants.length)) {
+      fail(400, 'เพิ่มตัวเลือกได้ 1–50 รายการต่อครั้ง');
+    }
+    const variants = data.variants.map(variantValues);
+    const group = {id:groupId, name};
+    if (data.id && !(await one(db, 'SELECT id FROM product_groups WHERE id=?', groupId))) fail(404, 'ไม่พบแอป');
+    const save = data.id
+      ? stmt(db, 'UPDATE product_groups SET name=?,description=?,image_key=? WHERE id=?', name, description, image, groupId)
+      : stmt(db, 'INSERT INTO product_groups(name,description,image_key,id,cover_category) VALUES(?,?,?,?,?)', name, description, image, groupId, name);
+    await db.batch([save, ...variants.map(values => insertVariant(db, group, values))]);
+    return respond(group, data.id ? 200 : 201);
+  }
   if (method === 'POST' && path === '/api/admin/products') {
     const data = await payload(request);
     const productId = data.id ? field(data.id, 36) : id();
-    const image = data.image_key || null;
-    if (image && (typeof image !== 'string' || !/^[a-f0-9-]{36}$/.test(image) || !(await env.BUCKET.head('products/' + image)))) fail(400, 'ไม่พบรูปสินค้าที่เลือก');
-    const values = [field(data.name, 120), field(data.category, 60), field(data.description, 3000, false),
-      integer(data.price, 1, 10000000), image, data.active === true ? 1 : 0, now()];
+    const image = await productImage(env, data.image_key);
+    const values = variantValues(data);
+    let group;
+    if (data.group_id) {
+      group = await one(db, 'SELECT id,name FROM product_groups WHERE id=?', field(data.group_id, 36));
+    } else {
+      const category = field(data.category, 60);
+      await run(db, 'INSERT INTO product_groups(id,name,cover_category) VALUES(?,?,?) ON CONFLICT(name) DO NOTHING', id(), category, category);
+      group = await one(db, 'SELECT id,name FROM product_groups WHERE name=?', category);
+    }
+    if (!group) fail(404, 'ไม่พบแอปของแพ็กเกจ');
     if (data.id) {
       const revision = integer(data.revision, 0, Number.MAX_SAFE_INTEGER);
-      const result = await run(db, `UPDATE products SET name=?,category=?,description=?,price=?,image_key=?,
-        active=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`, ...values, productId, revision);
+      const result = await run(db, `UPDATE products SET group_id=?,category=?,name=?,description=?,price=?,days=?,shares=?,
+        active=?,image_key=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?`,
+        group.id, group.name, ...values, image, now(), productId, revision);
       if (!result.meta.changes) fail(409, 'สินค้าหรือสต็อกเพิ่งเปลี่ยน กรุณาเปิดหน้าแก้ไขใหม่');
     } else {
-      await run(db, `INSERT INTO products(id,name,category,description,price,image_key,active,updated_at,stock)
-        VALUES(?,?,?,?,?,?,?,?,0)`, productId, ...values);
+      await run(db, `INSERT INTO products(id,group_id,category,name,description,price,days,shares,active,image_key,stock)
+        VALUES(?,?,?,?,?,?,?,?,?,?,0)`, productId, group.id, group.name, ...values, image);
     }
     return respond({ id: productId });
   }
